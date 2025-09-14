@@ -1,0 +1,248 @@
+{
+  "name": "AI_Agenti_hw02",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful assistant managing a reservation system for a single parking spot. Your goal is to help users check for available times and manage bookings.\n\n**Your Capabilities:**\n\n1. **Check Availability:** You can find and list available 3-minute time slots for any given day.\n    \n2. **Book Parking:** You can reserve the parking spot for a specific time range.\n    \n3. **Cancel Bookings:** You can free up or cancel existing reservations.\n    \n4. **Check Specific Availability:** You can check if a specific time range is free and return a simple 'yes' or 'no'.\n    \n\n**Important Context:**\n\n- **Current Date & Time:** Assume the current time is **Sunday, September 14, 2025, 6:28 PM CEST**. Use this as a reference for all relative time queries like \"today,\" \"tomorrow,\" or \"this afternoon.\"\n    \n- **Booking Rules:**\n    \n    - Bookings can only be for one day at a time.\n        \n    - The minimum booking duration is one hour (which equals two 30-minute slots).\n        \n- **Process:** When a user asks to book or cancel, first check for availability or the existing booking, confirm with the user, and then execute the action.\n    \n\n# SQL Query Tools\n\n## Tool 1: Get Free Parking Slots\n\n**Description:** Use this tool to find all available 30-minute parking slots for a specific day. You need to convert natural language requests (e.g., \"tomorrow afternoon\", \"next Monday\") into a specific date (`YYYY-MM-DD`) before running the query.\n\n**Parameters (JSON object):**\n\n```\n{\n  \"date\": \"string\",\n  \"start_time\": \"string (optional)\",\n  \"end_time\": \"string (optional)\"\n}\n```\n\n**Example:**\n\n- **User says:** \"What's available tomorrow afternoon?\"\n    \n- **AI provides:** `{ \"date\": \"2025-09-15\", \"start_time\": \"12:00:00\" }`\n    \n\n**SQL Query:**\n\n```\nSELECT\n    slot_time\nFROM\n    time_slots\nWHERE\n    is_reserved = FALSE\n    AND DATE(slot_time) = '{{ $fromAI('date') }}'\n    AND slot_time::time >= '{{ $fromAI('start_time') | default: '00:00:00' }}'\n    AND slot_time::time <= '{{ $fromAI('end_time') | default: '23:59:59' }}'\nORDER BY\n    slot_time;\n```\n\n## Tool 2: Book Parking Slots\n\n**Description:** Use this tool to reserve a time range. Before using, ensure the requested slots are actually available. Also, verify that the duration is at least one hour.\n\n**Parameters (JSON object):**\n\n```\n{\n  \"start_time\": \"string\",\n  \"end_time\": \"string\",\n  \"booking_name\": \"string\"\n}\n```\n\n**Example:**\n\n- **User says:** \"Book it from 2 PM to 4 PM for 'John Doe'.\"\n    \n- **AI provides:** `{ \"start_time\": \"2025-09-15 14:00:00\", \"end_time\": \"2025-09-15 16:00:00\", \"booking_name\": \"John Doe\" }`\n    \n\n**SQL Query:**\n\n```\nUPDATE\n    time_slots\nSET\n    is_reserved = TRUE,\n    booking_name = '{{ $fromAI('booking_name') }}'\nWHERE\n    slot_time >= '{{ $fromAI('start_time') }}'\n    AND slot_time < '{{ $fromAI('end_time') }}'\n    AND is_reserved = FALSE;\n```\n\n## Tool 3: Free (Cancel) Parking Slots\n\n**Description:** Use this tool to cancel a booking and make the time slots available again.\n\n**Parameters (JSON object):**\n\n```\n{\n  \"start_time\": \"string\",\n  \"end_time\": \"string\",\n  \"booking_name\": \"string (optional)\"\n}\n```\n\n**Example:**\n\n- **User says:** \"Cancel my booking for tomorrow from 10am to 11am.\"\n    \n- **AI provides:** `{ \"start_time\": \"2025-09-15 10:00:00\", \"end_time\": \"2025-09-15 11:00:00\" }`\n    \n\n**SQL Query:**\n\n```\nUPDATE\n    time_slots\nSET\n    is_reserved = FALSE,\n    booking_name = NULL\nWHERE\n    slot_time >= '{{ $fromAI('start_time') }}'\n    AND slot_time < '{{ $fromAI('end_time') }}'\n    AND ('{{ $fromAI('booking_name') | default: '' }}' = '' OR booking_name = '{{ $fromAI('booking_name') }}');\n```\n\n## Tool 4: Check Availability For Time Range\n\n**Description:** Use this tool to quickly check if a specific time range is available. It returns the number of reserved slots in that range. If the result is 0, the time range is fully available (\"yes\"). If greater than 0, it is not available (\"no\").\n\n**Parameters (JSON object):**\n\n```\n{\n  \"start_time\": \"string\",\n  \"end_time\": \"string\"\n}\n```\n\n**Example:**\n\n- **User says:** \"Is the spot free on the 20th from 9am to 11am?\"\n    \n- **AI provides:** `{ \"start_time\": \"2025-09-20 09:00:00\", \"end_time\": \"2025-09-20 11:00:00\" }`\n    \n\n**SQL Query:**\n\n```\nSELECT\n    COUNT(*) AS reserved_slots_count\nFROM\n    time_slots\nWHERE\n    is_reserved = TRUE\n    AND slot_time >= '{{ $fromAI('start_time') }}'\n    AND slot_time < '{{ $fromAI('end_time') }}';\n```"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        416
+      ],
+      "id": "48f9e862-090b-4343-a0c8-5b8058fa135c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1152,
+        416
+      ],
+      "id": "83c5707b-22bf-4b78-b79d-5997ed537287",
+      "name": "When chat message received",
+      "webhookId": "ec0adaec-8d3b-48f6-9614-fec9ab99bb85"
+    },
+    {
+      "parameters": {
+        "content": "## Prompts\n\nis there an available parking spot for tomorrow?\n\nbook me a space for tomorrow morning from 8am till 10 am under a name Jakub\n",
+        "height": 280,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        544,
+        384
+      ],
+      "typeVersion": 1,
+      "id": "3e6b1b2d-45ec-4864-98bc-02fcc0e01ff5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        720
+      ],
+      "id": "ea0bae28-e696-4159-996b-01f82f64a7da",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xKKW2MNjtffm9XLC",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get all available 30-minute parking slots for a specific day. You need to convert natural language requests (e.g., \"tomorrow afternoon\", \"next Monday\") into a specific date (YYYY-MM-DD) before running the query.",
+        "operation": "executeQuery",
+        "query": "SELECT\n    slot_time\nFROM\n    time_slots\nWHERE\n    is_reserved = FALSE\n    AND DATE(slot_time) = $1\n    AND slot_time::time >= $2\n    AND slot_time::time <= $3\nORDER BY\n    slot_time;\n",
+        "options": {
+          "queryReplacement": "={{ $fromAI('date') }}, {{ $fromAI('start_time') }}, , {{ $fromAI('end_time') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1504,
+        752
+      ],
+      "id": "210df2e3-daa7-4cc8-a671-c605bc7d0bc5",
+      "name": "Get Free Parking Slots",
+      "credentials": {
+        "postgres": {
+          "id": "6YAs2xTZxvS5p2sd",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to reserve a time range. Before using, ensure the requested slots are actually available by using \"Get Free Parking Slots\". Also, verify that the duration between start_time and end_time is at least one hour.",
+        "operation": "executeQuery",
+        "query": "UPDATE\n    time_slots\nSET\n    is_reserved = TRUE,\n    booking_name = $1\nWHERE\n    slot_time >= $2\n    AND slot_time < $3\n    AND is_reserved = FALSE; -- Important: Only book slots that are currently free.",
+        "options": {
+          "queryReplacement": "={{ $fromAI('booking_name') }}, {{ $fromAI('start_time') }}, , {{ $fromAI('end_time') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1696,
+        752
+      ],
+      "id": "61c22bcb-b443-44fd-9044-d1aa61aad497",
+      "name": "Book Parking Slots",
+      "credentials": {
+        "postgres": {
+          "id": "6YAs2xTZxvS5p2sd",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to quickly check if a specific time range is available. It returns the number of reserved slots in that range. If the result is 0, the time range is fully available (\"yes\"). If the result is greater than 0, it is not available (\"no\"). \nParameters are start_time and end_time.\n\n\n",
+        "operation": "executeQuery",
+        "query": "SELECT\n    COUNT(*) AS reserved_slots_count\nFROM\n    time_slots\nWHERE\n    is_reserved = TRUE\n    AND slot_time >= $1\n    AND slot_time < $2;\n",
+        "options": {
+          "queryReplacement": "={{ $fromAI('start_time') }}, , {{ $fromAI('end_time') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        2016,
+        560
+      ],
+      "id": "0b6dcdc5-4850-46fc-8d56-d20335dec8fe",
+      "name": "Check Availability For Time Range",
+      "credentials": {
+        "postgres": {
+          "id": "6YAs2xTZxvS5p2sd",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to cancel a booking and make the time slots available again.",
+        "operation": "executeQuery",
+        "query": "UPDATE\n    time_slots\nSET\n    is_reserved = FALSE,\n    booking_name = NULL\nWHERE\n    slot_time >= $2\n    AND slot_time < $2\n    -- Optionally, you can add a check for the booking name to prevent accidental cancellations\n    AND ($1 = '' OR booking_name = $1);\n",
+        "options": {
+          "queryReplacement": "={{ $fromAI('booking_name') }}, {{ $fromAI('start_time') }}, , {{ $fromAI('end_time') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1904,
+        704
+      ],
+      "id": "74758473-aa7c-4cb2-8048-f0f8fff5c3b3",
+      "name": "Free (Cancel) Parking Slots",
+      "credentials": {
+        "postgres": {
+          "id": "6YAs2xTZxvS5p2sd",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Free Parking Slots": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book Parking Slots": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Availability For Time Range": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Free (Cancel) Parking Slots": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8f1b20ce-ceb3-421c-8326-e44dc6349352",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ceb6f583751ed4c8b38f344ff3b5e725dd0c0592d98b13cfd4aab5f201acd3a6"
+  },
+  "id": "HQvRcyVHWUw65eoB",
+  "tags": []
+}

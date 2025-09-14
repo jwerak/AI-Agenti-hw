@@ -57,6 +57,32 @@ WITH RECURSIVE slots AS (
 )
 SELECT slot_union FROM slots;
 
+-- This script populates the 'time_slots' table with all 30-minute intervals
+-- for the next month, starting from September 14, 2025.
+-- It uses the generate_series function, which is efficient for this task in PostgreSQL.
+
+INSERT INTO time_slots (slot_time)
+SELECT
+    -- Combine each day with each time interval to create the full timestamp.
+    day + time_interval AS slot_time
+FROM
+    -- Generate a series of dates for the next 31 days.
+    generate_series(
+        '2025-09-14'::timestamp,
+        '2025-10-14'::timestamp,
+        '1 day'::interval
+    ) AS day
+CROSS JOIN
+    -- For each day, generate a series of 48 time intervals (from 00:00 to 23:30).
+    generate_series(
+        '00:00:00'::interval,
+        '23:30:00'::interval,
+        '30 minutes'::interval
+    ) AS time_interval
+-- Optional: Prevent duplicate entries if the script is run more than once.
+ON CONFLICT (slot_time) DO NOTHING;
+
+
 
 -- ===== How to Book a Time Range =====
 
