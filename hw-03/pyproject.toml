@@ -1,0 +1,16 @@
+[project]
+name = "ai-agenti-hw03"
+version = "0.1.0"
+description = "AI Agents homework - ReAct agent with tools using LangGraph"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "arxiv>=2.2.0",
+    "langchain-community>=0.3.24",
+    "langchain-experimental>=0.3.4",
+    "langchain-google-genai>=2.1.12",
+    "langgraph>=0.4.8",
+    "pillow>=11.2.1",
+    "python-dotenv>=1.1.0",
+    "wolframalpha==5.0.0",
+]

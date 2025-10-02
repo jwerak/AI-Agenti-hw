@@ -1,0 +1,42 @@
+# Use Fedora as base image
+FROM fedora:latest
+
+# Set working directory in container
+WORKDIR /app
+
+# Install Python and system dependencies
+RUN dnf update -y && dnf install -y \
+    python3 \
+    python3-devel \
+    gcc \
+    gcc-c++ \
+    curl \
+    && dnf clean all
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Copy pyproject.toml for dependency installation
+COPY pyproject.toml .
+
+# Install Python dependencies using uv
+RUN uv sync
+
+# Copy application files
+COPY main.py .
+COPY visualizer.py .
+
+# Copy .env file if it exists (optional)
+COPY .env* ./
+
+# Create directory for output files (like graph.png)
+RUN mkdir -p /app/output
+
+# Set environment variables (optional - can be overridden at runtime)
+ENV PYTHONUNBUFFERED=1
+
+# Run the application using uv
+# Use -it flags when running the container for interactive mode
+CMD ["uv", "run", "python", "main.py"]
+
