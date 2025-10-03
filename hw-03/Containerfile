@@ -25,7 +25,6 @@ RUN uv sync
 
 # Copy application files
 COPY main.py .
-COPY visualizer.py .
 
 # Copy .env file if it exists (optional)
 COPY .env* ./
