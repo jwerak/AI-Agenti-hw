@@ -145,9 +145,7 @@ async def make_graph():
     mcp_tools = await client.get_tools()
     # Combine local tools with MCP tools
     all_tools = local_tools + mcp_tools
-    agent = create_react_agent(
-        model=llm, tools=all_tools, prompt="You are a helpful assistant"
-    )
+    agent = create_react_agent(model=llm, tools=all_tools, prompt=prompt)
     return agent
 
 
